@@ -1,0 +1,25 @@
+name: Import lab sources
+on:
+  push:
+    branches: [main]
+    paths: [devops-lab7-transfer.bundle]
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Import verified Git bundle
+        run: |
+          test -f devops-lab7-transfer.bundle || exit 0
+          git bundle verify devops-lab7-transfer.bundle
+          git fetch ./devops-lab7-transfer.bundle refs/heads/main:refs/lab/main
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --allow-unrelated-histories --no-commit refs/lab/main
+          git rm devops-lab7-transfer.bundle
+          git commit -m 'Import Lab 6 service and Lab 7 tests'
+          git push origin HEAD:main
