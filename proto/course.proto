@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package course;
+
+option go_package = "DevOps/proto";
+
+// CourseMessage — сообщение с данными курса
+message CourseMessage {
+  string id = 1;
+  string title = 2;
+  string instructor = 3;
+  int32 duration = 4;
+  bool published = 5;
+  string created_at = 6;
+}
+
+// CreateCourseRequest — запрос на создание курса
+message CreateCourseRequest {
+  string title = 1;
+  string instructor = 2;
+  int32 duration = 3;
+}
+
+// CreateCourseResponse — ответ на создание курса
+message CreateCourseResponse {
+  string id = 1;
+  string error = 2;
+}
+
+// GetCourseRequest — запрос на получение курса
+message GetCourseRequest {
+  string id = 1;
+}
+
+// GetCourseResponse — ответ на получение курса
+message GetCourseResponse {
+  CourseMessage course = 1;
+  string error = 2;
+}
+
+// PublishCourseRequest — запрос на публикацию курса
+message PublishCourseRequest {
+  string id = 1;
+}
+
+// PublishCourseResponse — ответ на публикацию курса
+message PublishCourseResponse {
+  string message = 1;
+  string error = 2;
+}
+
+// CourseService — сервис для работы с курсами
+service CourseService {
+  rpc CreateCourse(CreateCourseRequest) returns (CreateCourseResponse);
+  rpc GetCourse(GetCourseRequest) returns (GetCourseResponse);
+  rpc PublishCourse(PublishCourseRequest) returns (PublishCourseResponse);
+}
