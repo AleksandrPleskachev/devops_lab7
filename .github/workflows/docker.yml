@@ -1,0 +1,50 @@
+name: Docker
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+defaults:
+  run:
+    shell: bash
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build image
+        run: docker build --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --tag courses:ci .
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Push and pull image
+        id: image
+        run: |
+          ref="ghcr.io/${GITHUB_REPOSITORY,,}/courses"
+          tag="sha-${GITHUB_SHA:0:7}"
+          docker tag courses:ci "$ref:$tag"
+          docker tag courses:ci "$ref:main"
+          docker push "$ref:$tag"
+          docker push "$ref:main"
+          docker image rm "$ref:main" "$ref:$tag" courses:ci
+          docker pull "$ref:$tag"
+          echo "ref=$ref:$tag" >> "$GITHUB_OUTPUT"
+      - name: Run image and verify HTTP endpoints
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}
+        run: |
+          docker run -d --name lab7-courses -p 127.0.0.1:8080:8080 -p 127.0.0.1:9090:9090 "$IMAGE"
+          trap 'docker logs lab7-courses; docker rm -f lab7-courses' EXIT
+          for attempt in {1..30}; do
+            if curl --silent --output /dev/null http://127.0.0.1:8080/courses/missing; then break; fi
+            sleep 1
+          done
+          id=$(curl --fail-with-body -sS -H 'Content-Type: application/json' -d '{"title":"Docker CI","instructor":"Runner","duration":12}' http://127.0.0.1:8080/courses | jq -er '.id')
+          echo "Created course: $id"
+          curl --fail-with-body -sS "http://127.0.0.1:8080/courses/$id" | jq -e '.published == false'
+          curl --fail-with-body -sS -X POST "http://127.0.0.1:8080/courses/$id/publish"
+          curl --fail-with-body -sS "http://127.0.0.1:8080/courses/$id" | tee course.json | jq -e '.published == true'
+          cat course.json
